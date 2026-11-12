@@ -82,16 +82,6 @@ class Bill(BaseModel):
         assert isinstance(data, list), "Expected a list of bills"
         return [Bill(**bill) for bill in data]
 
-class TenantSettlement(BaseModel):
-    tenant: str
-    apartment: str
-    settlement_year: int
-    settlement_month: int
-    rent_pln: float
-    bills_pln: float
-    total_due_pln: float
-    transfers_pln: float
-    balance_pln: float
 
 class ApartmentSettlement(BaseModel):
     apartment: str
@@ -118,59 +108,6 @@ class Manager:
         self.tenants = Tenant.from_json_file(self.parameters.tenants_json_path)
         self.transfers = Transfer.from_json_file(self.parameters.transfers_json_path)
         self.bills = Bill.from_json_file(self.parameters.bills_json_path)
-
-    def generate_tenant_settlements(self, year: int, month: int) -> List[TenantSettlement]:
-        settlements = []
-        
-        apt_tenants = {}
-        for tenant in self.tenants.values():
-            if tenant.apartment not in apt_tenants:
-                apt_tenants[tenant.apartment] = []
-            apt_tenants[tenant.apartment].append(tenant)
-            
-        for apt_key, apartment in self.apartments.items():
-            tenants_in_apt = apt_tenants.get(apt_key, [])
-            if not tenants_in_apt:
-                continue
-                
-            apt_bills = sum(
-                b.amount_pln for b in self.bills 
-                if b.apartment == apt_key and b.settlement_year == year and b.settlement_month == month
-            )
-            
-            total_room_area = sum(room.area_m2 for room in apartment.rooms.values())
-            
-            for tenant in tenants_in_apt:
-                rent = tenant.rent_pln
-                
-                tenant_room = apartment.rooms.get(tenant.room)
-                if tenant_room and total_room_area > 0:
-                    bills_share = apt_bills * (tenant_room.area_m2 / total_room_area)
-                else:
-                    bills_share = apt_bills / len(tenants_in_apt) if tenants_in_apt else 0.0
-                    
-                total_due = rent + bills_share
-                
-                tenant_transfers = sum(
-                    tr.amount_pln for tr in self.transfers
-                    if tr.tenant == tenant.name and tr.settlement_year == year and tr.settlement_month == month
-                )
-                
-                balance = tenant_transfers - total_due
-                
-                settlements.append(TenantSettlement(
-                    tenant=tenant.name,
-                    apartment=apt_key,
-                    settlement_year=year,
-                    settlement_month=month,
-                    rent_pln=round(rent, 2),
-                    bills_pln=round(bills_share, 2),
-                    total_due_pln=round(total_due, 2),
-                    transfers_pln=round(tenant_transfers, 2),
-                    balance_pln=round(balance, 2)
-                ))
-                
-        return settlements
 
 
 if __name__ == '__main__':
