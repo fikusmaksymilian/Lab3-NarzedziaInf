@@ -209,3 +209,5 @@ if __name__ == '__main__':
                 print(f'    - {transfer.amount_pln:>9.2f} zl  dnia {transfer.date}  '
                       f'za {transfer.settlement_month:02d}/{transfer.settlement_year}')
         print()
+
+#Zmiana Adam
