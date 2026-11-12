@@ -177,17 +177,35 @@ if __name__ == '__main__':
     parameters = Parameters()
     manager = Manager(parameters)
 
+    print('=' * 50)
+    print('MIESZKANIA')
+    print('=' * 50)
     for apartment in manager.apartments.values():
-        print(apartment.key, apartment.name, apartment.location, apartment.area_m2)
+        print(f'{apartment.name} ({apartment.key})')
+        print(f'  Adres:       {apartment.location}')
+        print(f'  Powierzchnia: {apartment.area_m2:.1f} m2')
+        print('  Pokoje:')
         for room in apartment.rooms.values():
-            print('  ', room.name, room.area_m2)
+            print(f'    - {room.name:<15} {room.area_m2:>6.1f} m2')
 
+        print('  Rachunki:')
         for bill in manager.bills:
             if bill.apartment == apartment.key:
-                print('  ', bill.amount_pln, bill.date_due, bill.settlement_year, bill.settlement_month, bill.type)
+                print(f'    - {bill.type:<15} {bill.amount_pln:>9.2f} zl  '
+                      f'za {bill.settlement_month:02d}/{bill.settlement_year}  (termin: {bill.date_due})')
+        print()
 
+    print('=' * 50)
+    print('NAJEMCY')
+    print('=' * 50)
     for tenant in manager.tenants.values():
-        print(tenant.name, tenant.apartment, tenant.room, tenant.rent_pln, tenant.deposit_pln, tenant.date_agreement_from, tenant.date_agreement_to)
+        print(f'{tenant.name} -> {tenant.apartment} / {tenant.room}')
+        print(f'  Czynsz:  {tenant.rent_pln:>9.2f} zl')
+        print(f'  Kaucja:  {tenant.deposit_pln:>9.2f} zl')
+        print(f'  Umowa:   {tenant.date_agreement_from} - {tenant.date_agreement_to}')
+        print('  Przelewy:')
         for transfer in manager.transfers:
             if transfer.tenant == tenant.name:
-                print('  ', transfer.amount_pln, transfer.date, transfer.settlement_year, transfer.settlement_month)
+                print(f'    - {transfer.amount_pln:>9.2f} zl  dnia {transfer.date}  '
+                      f'za {transfer.settlement_month:02d}/{transfer.settlement_year}')
+        print()
