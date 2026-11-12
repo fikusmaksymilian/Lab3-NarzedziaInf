@@ -3,16 +3,20 @@
         "key": "apart-polanka",
         "name": "Polanka",
         "location": "Polanka 3a",
-        "area_m2": 65,
+        "area_m2": 65.0,
         "rooms": {
             "room-bigger": {
                 "name": "Bigger Room",
-                "area_m2": 20
+                "area_m2": 20.0
+            },
+            "room-medium": {
+                "name": "Medium Room",
+                "area_m2": 18.0
             },
             "room-smaller": {
                 "name": "Smaller Room",
-                "area_m2": 15
+                "area_m2": 15.0
             }
         }
-    } 
+    }
 }
