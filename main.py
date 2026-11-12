@@ -31,7 +31,7 @@ class Apartment(BaseModel):
         assert isinstance(data, dict), "Expected a dictionary of apartments"
         return {key: Apartment(**apartment) for key, apartment in data.items()}
 
-    
+
 class Tenant(BaseModel):
     name: str
     apartment: str
@@ -48,7 +48,7 @@ class Tenant(BaseModel):
             data = json.load(file)
         assert isinstance(data, dict), "Expected a dictionary of tenants"
         return {key: Tenant(**tenant) for key, tenant in data.items()}
-    
+
 
 class Transfer(BaseModel):
     amount_pln: float
@@ -82,16 +82,35 @@ class Bill(BaseModel):
         assert isinstance(data, list), "Expected a list of bills"
         return [Bill(**bill) for bill in data]
 
+class TenantSettlement(BaseModel):
+    tenant: str
+    apartment: str
+    settlement_year: int
+    settlement_month: int
+    rent_pln: float
+    bills_pln: float
+    total_due_pln: float
+    transfers_pln: float
+    balance_pln: float
+
+class ApartmentSettlement(BaseModel):
+    apartment: str
+    year: int
+    month: int
+    total_bills_pln: float
+    total_rent_pln: float
+    total_due_pln: float
+
 
 class Manager:
     def __init__(self, parameters: Parameters):
-        self.parameters = parameters 
+        self.parameters = parameters
 
         self.apartments = {}
         self.tenants = {}
         self.transfers = []
         self.bills = []
-       
+
         self.load_data()
 
     def load_data(self):
@@ -100,24 +119,95 @@ class Manager:
         self.transfers = Transfer.from_json_file(self.parameters.transfers_json_path)
         self.bills = Bill.from_json_file(self.parameters.bills_json_path)
 
+    def generate_tenant_settlements(self, year: int, month: int) -> List[TenantSettlement]:
+        settlements = []
+        
+        apt_tenants = {}
+        for tenant in self.tenants.values():
+            if tenant.apartment not in apt_tenants:
+                apt_tenants[tenant.apartment] = []
+            apt_tenants[tenant.apartment].append(tenant)
+            
+        for apt_key, apartment in self.apartments.items():
+            tenants_in_apt = apt_tenants.get(apt_key, [])
+            if not tenants_in_apt:
+                continue
+                
+            apt_bills = sum(
+                b.amount_pln for b in self.bills 
+                if b.apartment == apt_key and b.settlement_year == year and b.settlement_month == month
+            )
+            
+            total_room_area = sum(room.area_m2 for room in apartment.rooms.values())
+            
+            for tenant in tenants_in_apt:
+                rent = tenant.rent_pln
+                
+                tenant_room = apartment.rooms.get(tenant.room)
+                if tenant_room and total_room_area > 0:
+                    bills_share = apt_bills * (tenant_room.area_m2 / total_room_area)
+                else:
+                    bills_share = apt_bills / len(tenants_in_apt) if tenants_in_apt else 0.0
+                    
+                total_due = rent + bills_share
+                
+                tenant_transfers = sum(
+                    tr.amount_pln for tr in self.transfers
+                    if tr.tenant == tenant.name and tr.settlement_year == year and tr.settlement_month == month
+                )
+                
+                balance = tenant_transfers - total_due
+                
+                settlements.append(TenantSettlement(
+                    tenant=tenant.name,
+                    apartment=apt_key,
+                    settlement_year=year,
+                    settlement_month=month,
+                    rent_pln=round(rent, 2),
+                    bills_pln=round(bills_share, 2),
+                    total_due_pln=round(total_due, 2),
+                    transfers_pln=round(tenant_transfers, 2),
+                    balance_pln=round(balance, 2)
+                ))
+                
+        return settlements
+
 
 if __name__ == '__main__':
     parameters = Parameters()
     manager = Manager(parameters)
 
+    print('=' * 50)
+    print('MIESZKANIA')
+    print('=' * 50)
     for apartment in manager.apartments.values():
-        print(apartment.key, apartment.name, apartment.location, apartment.area_m2)
+        print(f'{apartment.name} ({apartment.key})')
+        print(f'  Adres:       {apartment.location}')
+        print(f'  Powierzchnia: {apartment.area_m2:.1f} m2')
+        print('  Pokoje:')
         for room in apartment.rooms.values():
-            print('  ', room.name, room.area_m2)
-        
+            print(f'    - {room.name:<15} {room.area_m2:>6.1f} m2')
+
+        print('  Rachunki:')
         for bill in manager.bills:
             if bill.apartment == apartment.key:
-                print('  ', bill.amount_pln, bill.date_due, bill.settlement_year, bill.settlement_month, bill.type)
+                print(f'    - {bill.type:<15} {bill.amount_pln:>9.2f} zl  '
+                      f'za {bill.settlement_month:02d}/{bill.settlement_year}  (termin: {bill.date_due})')
+        print()
 
+    print('=' * 50)
+    print('NAJEMCY')
+    print('=' * 50)
     for tenant in manager.tenants.values():
-        print(tenant.name, tenant.apartment, tenant.room, tenant.rent_pln, tenant.deposit_pln, tenant.date_agreement_from, tenant.date_agreement_to)
+        print(f'{tenant.name} -> {tenant.apartment} / {tenant.room}')
+        print(f'  Czynsz:  {tenant.rent_pln:>9.2f} zl')
+        print(f'  Kaucja:  {tenant.deposit_pln:>9.2f} zl')
+        print(f'  Umowa:   {tenant.date_agreement_from} - {tenant.date_agreement_to}')
+        print('  Przelewy:')
         for transfer in manager.transfers:
             if transfer.tenant == tenant.name:
-                print('  ', transfer.amount_pln, transfer.date, transfer.settlement_year, transfer.settlement_month)
+                print(f'    - {transfer.amount_pln:>9.2f} zl  dnia {transfer.date}  '
+                      f'za {transfer.settlement_month:02d}/{transfer.settlement_year}')
+        print()
 
 #Zmiana Adam
